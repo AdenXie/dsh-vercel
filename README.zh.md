@@ -13,7 +13,7 @@
   <a href="skills/vercel"><img src="https://img.shields.io/badge/Vercel_skills-34-f97316" alt="34 个 Vercel 技能"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/code-MIT-0f766e" alt="连接代码使用 MIT 许可"></a>
   <a href="LICENSES/VERCEL-APACHE-2.0.txt"><img src="https://img.shields.io/badge/skills-Apache_2.0-0f766e" alt="Vercel 技能使用 Apache 2.0 许可"></a>
-  <a href="#能力与限制"><img src="https://img.shields.io/badge/status-local_validation-64748b" alt="本地验证版本；尚未发布 npm"></a>
+  <a href="docs/VALIDATION-0.3.1.zh.md"><img src="https://img.shields.io/badge/status-verified-0f766e" alt="已在 Desktop 与隔离 Host 环境验证"></a>
 </p>
 
 <p align="center">
@@ -25,9 +25,20 @@
 
 <p align="center"><a href="README.md">English</a> · 简体中文</p>
 
-> `@adenxie/dsh-vercel` 0.3.1。我已在 DSH Desktop 和隔离 Host 环境中完成验证，目前提供源码构建，尚未将本版本发布到 npm 或 GitHub Release。完整范围见[验证记录](docs/VALIDATION-0.3.1.zh.md)。
+> `@adenxie/dsh-vercel` 0.3.1。我已在 DSH Desktop 和隔离 Host 环境中完成验证，具体检查与限制见[验证记录](docs/VALIDATION-0.3.1.zh.md)。
 
 ## 安装
+
+先打开 DSH Desktop 初始化 profile，再完全退出客户端，使用自带 CLI 安装 npm 包：
+
+```powershell
+$DshCli = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
+& $DshCli plugin --profile desktop add '@adenxie/dsh-vercel@0.3.1'
+```
+
+完成后重新打开 Desktop。Web profile 可以使用 `dsh plugin --profile web add @adenxie/dsh-vercel@0.3.1`。
+
+### 本地安装包或源码
 
 构建本地源码后运行 `npm pack`，生成 `adenxie-dsh-vercel-0.3.1.tgz`。日常使用我推荐安装这个独立包。初始化并完全退出 Desktop 后，在安装包所在目录运行 PowerShell：
 
@@ -51,7 +62,7 @@ $Checkout = (Get-Location).Path
 & $DshCli plugin --profile desktop add "link:$Checkout"
 ```
 
-上述命令会克隆源码、构建并链接安装本地 checkout。示例用 `$env:LOCALAPPDATA` 定位 Desktop 自带 CLI，不依赖系统 PATH 中的 `dsh`。Desktop profile 安装前需先打开 DSH Desktop 初始化 profile，再完全退出 Desktop；命令成功后重新启动 Desktop。其他平台或 Web profile 可使用已安装的 `dsh` 命令，例如 `dsh plugin --profile web add link:/path/to/dsh-vercel`，替换成本机 checkout 路径后重启对应 Host。npm 包名为 `@adenxie/dsh-vercel`，尚未发布至 npm。首次使用时运行 `adenxie_vercel_mcp_oauth_start`，在浏览器登录并授权；成功后 MCP 工具会以 `mcp__adenxie_vercel__*` 名称提供。新授权请求 `openid offline_access`，以便 Vercel 签发刷新令牌。旧授权若没有刷新令牌，需在设置页重新授权；新授权成功前会保留原凭据。设置页可查看状态、测试连接、刷新令牌或清除凭据。
+上述命令会克隆源码、构建并链接安装本地 checkout。示例用 `$env:LOCALAPPDATA` 定位 Desktop 自带 CLI，不依赖系统 PATH 中的 `dsh`。Desktop profile 安装前需先打开 DSH Desktop 初始化 profile，再完全退出 Desktop；命令成功后重新启动 Desktop。其他平台或 Web profile 可使用已安装的 `dsh` 命令，例如 `dsh plugin --profile web add link:/path/to/dsh-vercel`，替换成本机 checkout 路径后重启对应 Host。npm 包名为 `@adenxie/dsh-vercel`。首次使用时运行 `adenxie_vercel_mcp_oauth_start`，在浏览器登录并授权；成功后 MCP 工具会以 `mcp__adenxie_vercel__*` 名称提供。新授权请求 `openid offline_access`，以便 Vercel 签发刷新令牌。旧授权若没有刷新令牌，需在设置页重新授权；新授权成功前会保留原凭据。设置页可查看状态、测试连接、刷新令牌或清除凭据。
 
 包使用唯一 DSH Bundle row/settings ID `adenxie-dsh-vercel`；设置 API 位于 `/api/adenxie/dsh-vercel/`。客户端 ModuleLoader ID 与 scoped 包名 `@adenxie/dsh-vercel` 一致，row/settings ID 则独立。连接后可通过仅监听本机的 `GET /api/adenxie/dsh-vercel/catalog` 导出工具目录，其中包含远端名、DSH 映射名、输入/输出 schema、annotations 与元数据。Annotations 是服务端提示，不构成访问控制。MCP 的 structuredContent 与存在时的 `_meta` 会保存在 DSH 结构化结果中；`_meta` 不会作为模型文本呈现。技能仍通过 `adenxie_vercel_list_skills` / `adenxie_vercel_read_skill` 按需读取，不注册为宿主原生技能。
 
@@ -81,7 +92,7 @@ $Checkout = (Get-Location).Path
 - 我的离线测试使用本地 MCP 服务和临时凭据，覆盖结构化结果、响应 `_meta`、协议错误、刷新失败/轮换与凭据迁移。我还没有验证 Vercel 写入和部署。
 - MCP 文本块会呈现给模型；structuredContent 与 `_meta` 保留在结构化结果/展示元数据中。图片、音频和其他多模态块当前只保留于结构化结果并以占位文本提示，尚未实现对应的原生呈现；远端 MCP App/widget 也未嵌入。
 - 我没有添加独立的 Vercel 写操作门禁，也不根据 annotations 自动批准或拒绝操作；执行审批沿用 DSH 宿主策略和当前请求的授权。
-- 我对 npm 包、插件、路由和工具做了命名隔离。0.3.1 目前通过本地构建安装，尚未发布 npm 或对应的 GitHub Release。
+- 我对 npm 包、插件、路由和工具做了命名隔离。可以使用 npm 包或本地构建安装0.3.1；GitHub Release 单独维护。
 - 我在独立 DSH profile 中验证了 scoped tarball 的 Host 启动、revisioned client bundle/module ID 一致、停用 404、重新启用 200 与卸载清理；OAuth refresh 另有真实测试，Vercel 写入仍未验证。
 - 不承诺与 Codex 的 Vercel 插件功能完全等价。
 

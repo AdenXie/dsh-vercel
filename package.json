@@ -40,6 +40,11 @@
     "oauth"
   ],
   "license": "MIT",
+  "author": "AdenXie",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "engines": {
     "node": "^22.19.0 || >=24.0.0",
     "dsh": ">=0.2.1-rc.2 <0.3.0"

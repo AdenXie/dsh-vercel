@@ -13,7 +13,7 @@
   <a href="skills/vercel"><img src="https://img.shields.io/badge/Vercel_skills-34-f97316" alt="34 bundled Vercel skills"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/code-MIT-0f766e" alt="Connection code licensed under MIT"></a>
   <a href="LICENSES/VERCEL-APACHE-2.0.txt"><img src="https://img.shields.io/badge/skills-Apache_2.0-0f766e" alt="Vercel skills licensed under Apache 2.0"></a>
-  <a href="README.zh.md#能力与限制"><img src="https://img.shields.io/badge/status-local_validation-64748b" alt="Local validation build; not published to npm"></a>
+  <a href="docs/VALIDATION-0.3.1.zh.md"><img src="https://img.shields.io/badge/status-verified-0f766e" alt="Verified in Desktop and an isolated Host profile"></a>
 </p>
 
 <p align="center">
@@ -25,9 +25,20 @@
 
 <p align="center">English · <a href="README.zh.md">简体中文</a></p>
 
-> `@adenxie/dsh-vercel` 0.3.1. I have verified the plugin in DSH Desktop and an isolated Host profile. I currently provide source builds; I have not published this version to npm or as a GitHub Release. See the [verification record](docs/VALIDATION-0.3.1.zh.md).
+> `@adenxie/dsh-vercel` 0.3.1. I have verified the plugin in DSH Desktop and an isolated Host profile. See the [verification record](docs/VALIDATION-0.3.1.zh.md) for the checks and their limits.
 
 ## Install
+
+Initialize and fully quit DSH Desktop, then install the npm package with the bundled CLI:
+
+```powershell
+$DshCli = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
+& $DshCli plugin --profile desktop add '@adenxie/dsh-vercel@0.3.1'
+```
+
+Restart Desktop afterward. For a Web profile, use `dsh plugin --profile web add @adenxie/dsh-vercel@0.3.1`.
+
+### Local tarball or source checkout
 
 Build the local checkout and run `npm pack` to produce `adenxie-dsh-vercel-0.3.1.tgz`. I recommend this packaged installation for regular use. Initialize and fully quit Desktop, then run PowerShell in the archive directory:
 
