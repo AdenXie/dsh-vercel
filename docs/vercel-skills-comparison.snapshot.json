@@ -1,0 +1,146 @@
+{
+  "date": "2026-10-19",
+  "codexPackage": "0.54.1",
+  "codexContentBaseline": "0.54.0",
+  "dshUpstreamCommit": "137e9f44a243a939c5eaea30e4dff96aee744f64",
+  "codexSkillCount": 33,
+  "dshSkillCount": 34,
+  "onlyDsh": [
+    "daemons"
+  ],
+  "onlyCodex": [],
+  "mainFileComparisons": [
+    {
+      "name": "access-protected-vercel-deployment",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "ai-gateway",
+      "comparison": "different content"
+    },
+    {
+      "name": "ai-sdk",
+      "comparison": "different content"
+    },
+    {
+      "name": "auth",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "bootstrap",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "build-agents",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "cdn-caching",
+      "comparison": "different content"
+    },
+    {
+      "name": "chat-sdk",
+      "comparison": "different content"
+    },
+    {
+      "name": "create-a-backend",
+      "comparison": "different content"
+    },
+    {
+      "name": "custom-metrics",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "deployments-cicd",
+      "comparison": "different content"
+    },
+    {
+      "name": "domains",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "env-vars",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "eve",
+      "comparison": "different content"
+    },
+    {
+      "name": "flags-sdk",
+      "comparison": "different content"
+    },
+    {
+      "name": "is-agentic",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "knowledge-update",
+      "comparison": "different content"
+    },
+    {
+      "name": "marketplace",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "microfrontends",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "queues",
+      "comparison": "different content"
+    },
+    {
+      "name": "react-best-practices",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "routing-middleware",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "runtime-cache",
+      "comparison": "different content"
+    },
+    {
+      "name": "vercel-agent",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "vercel-cli",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "vercel-connect",
+      "comparison": "different content"
+    },
+    {
+      "name": "vercel-firewall",
+      "comparison": "different content"
+    },
+    {
+      "name": "vercel-functions",
+      "comparison": "different content"
+    },
+    {
+      "name": "vercel-sandbox",
+      "comparison": "different content"
+    },
+    {
+      "name": "vercel-services",
+      "comparison": "identical after newline normalization"
+    },
+    {
+      "name": "vercel-storage",
+      "comparison": "different content"
+    },
+    {
+      "name": "verification",
+      "comparison": "different content"
+    },
+    {
+      "name": "workflow",
+      "comparison": "identical after newline normalization"
+    }
+  ]
+}

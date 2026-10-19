@@ -1,0 +1,13 @@
+Vercel skill documentation
+
+Copyright 2026 Vercel, Inc.
+
+The Markdown files under skills/vercel are copied from Vercel, Inc.'s
+vercel/vercel-plugin repository, commit 137e9f44a243a939c5eaea30e4dff96aee744f64.
+They are distributed under the Apache License, Version 2.0. The license text
+is included in VERCEL-APACHE-2.0.txt. Upstream repository:
+https://github.com/vercel/vercel-plugin
+
+The dsh-vercel connection layer is derived from zhengjy01/dsh-vercel-mcp and
+remains under the MIT license in the repository root LICENSE file.
+Modifications and additions are Copyright 2026 AdenXie.

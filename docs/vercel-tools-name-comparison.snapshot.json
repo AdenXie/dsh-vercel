@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-19",
+  "dshLiveCount": 237,
+  "codexSnapshotCount": 235,
+  "matched": 234,
+  "onlyDsh": [
+    "authorize_team_sso",
+    "get_edge_config_token",
+    "create_record"
+  ],
+  "onlyCodex": [
+    "open_deployments"
+  ],
+  "readOnlyTrue": 145,
+  "readOnlyFalse": 92,
+  "readOnlyUnspecified": 0,
+  "exampleMetadataKeys": [
+    "vercel.com/cli"
+  ],
+  "note": "Name normalization only; schema equivalence and successful invocation of all tools not established. Annotations are hints, not authorization."
+}
