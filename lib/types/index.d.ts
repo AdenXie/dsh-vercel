@@ -15,7 +15,7 @@
  * server, refresh_token grant. See src/oauth.ts.
  */
 import type { Context } from '@deepseek-ai/cordis';
-import { defineTool } from '@deepseek-ai/dsh-tools';
+import { defineTool, type ToolRuntime } from '@deepseek-ai/dsh-tools';
 import { VercelMcpStore } from './store.ts';
 import { OAuthFlow } from './oauth.ts';
 import { type McpSupervisor } from './mcp.ts';
@@ -24,7 +24,11 @@ import { VERCEL_MCP_API } from './routes.ts';
 export declare const name = "adenxie-dsh-vercel";
 /** Services required before the surfaces can mount. */
 export declare const inject: string[];
-/** Model-facing announcement: plugin presence, capabilities, and limits. */
+/**
+ * Model-facing announcement. Sent with every request, so it holds only the
+ * routing a model cannot infer from the tool declarations; it stays static so
+ * the system prompt remains a stable cache prefix.
+ */
 export declare const VERCEL_MCP_GUIDANCE: string;
 /** Plugin config, read from the composition row. */
 export interface Config {
@@ -44,7 +48,8 @@ export { VERCEL_MCP_API };
 /** Re-exports for host consumers and the smoke tests. */
 export { VercelMcpStore, mask, configPath, MCP_URL, type VercelMcpConfigView } from './store.ts';
 export { OAuthFlow, VercelOAuthProvider, parseManualCallback, VERCEL_OAUTH_SCOPE, type PendingFlow, type RefreshOutcome } from './oauth.ts';
-export { createSupervisor, mapPublicToolName, registerMcpResultSemantics, type McpSupervisor, type McpToolCatalogEntry } from './mcp.ts';
+export { createSupervisor, mapPublicToolName, modelSchemaCharacters, registerMcpResultSemantics, type McpSupervisor, type McpToolCatalogEntry } from './mcp.ts';
+export { modelParameters, slimSchema } from './schema.ts';
 export { makeRoutes } from './routes.ts';
 export { defineTool };
 export interface VercelSkillSummary {
@@ -60,6 +65,8 @@ export interface ToolContext {
     flow: OAuthFlow;
     supervisor: McpSupervisor;
     callbackUrl: string;
+    /** Host tool runtime, used to dispatch loaded tools through the full policy pipeline. */
+    tools: Pick<ToolRuntime, 'execute'>;
 }
 /** Build the bounded, agent-scoped catalog and result controls. */
-export declare function createOnDemandTools(supervisor: McpSupervisor): ReturnType<typeof defineTool>[];
+export declare function createOnDemandTools(supervisor: McpSupervisor, tools: Pick<ToolRuntime, 'execute'>): ReturnType<typeof defineTool>[];

@@ -1,6 +1,6 @@
 {
   "name": "@adenxie/dsh-vercel",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "DeepSeek Harness Vercel MCP connection with OAuth, a settings panel, and on-demand official Vercel skills",
   "type": "module",
   "main": "lib/index.js",
@@ -54,7 +54,7 @@
     "bundle": "tsdown",
     "watch": "tsdown --watch",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/smoke.mjs && node tests/store-migration.mjs && node tests/oauth-lifecycle.mjs && node tests/project-scope.mjs && node tests/result-cache.mjs && node tests/mcp-bridge.mjs"
+    "test": "node tests/smoke.mjs && node tests/store-migration.mjs && node tests/oauth-lifecycle.mjs && node tests/project-scope.mjs && node tests/result-cache.mjs && node tests/surface.mjs && node tests/mcp-bridge.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

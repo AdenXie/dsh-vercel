@@ -10,7 +10,9 @@ import type { Agent } from '@deepseek-ai/dsh-agent';
 import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools';
 import { type VercelMcpStore } from './store.ts';
 import type { OAuthFlow } from './oauth.ts';
-import { type ResultPage } from './result-cache.ts';
+import { type ProjectedPage, type ResultPage } from './result-cache.ts';
+/** Helper that returns the full structure behind collapsed schema properties. */
+export declare const DESCRIBE_TOOL_NAME = "adenxie_vercel_mcp_describe_tool";
 export interface McpToolSearchResult {
     name: string;
     title?: string;
@@ -30,6 +32,8 @@ export interface McpToolCatalogEntry {
 }
 /** Derive the DSH public name. Lossy/long mappings get a stable identity suffix. */
 export declare function mapPublicToolName(rawName: string): string;
+/** Characters of the declaration the model actually receives for this tool. */
+export declare function modelSchemaCharacters(entry: McpToolCatalogEntry): number;
 /** Map an MCP tool's protocol-level error flag into DSH's result contract. */
 export declare function mapMcpToolError(result: ToolExecutionResult): ToolExecutionResult;
 /** Install the narrow DSH waterfall adapter that preserves MCP error status. */
@@ -50,10 +54,26 @@ export interface McpSupervisor {
     listTools(): Promise<string[]>;
     listToolCatalog(): Promise<McpToolCatalogEntry[]>;
     searchTools(agent: Agent | undefined, query: string, limit?: number): McpToolSearchResult[];
+    /** Accepts namespaced names or raw Vercel MCP names. */
     loadTools(agent: Agent | undefined, names: string[], replace?: boolean): string[];
+    /** Full input structure of one tool (or one property path), independent of loading. */
+    describeTool(agent: Agent | undefined, name: string, path?: string): {
+        name: string;
+        path: string;
+        collapsed: string[];
+        schema: string;
+    };
     unloadTools(agent: Agent | undefined, names?: string[]): string[];
     loadedTools(agent: Agent | undefined): string[];
+    /** Namespaced name of a tool loaded in this agent (raw names accepted), or undefined. */
+    resolveLoadedTool(agent: Agent | undefined, name: string): string | undefined;
     readResult(agent: Agent | undefined, resultId: string, offset?: number, limit?: number): ResultPage | undefined;
+    projectResult(agent: Agent | undefined, resultId: string, options: {
+        path?: string;
+        fields?: string[];
+        offset?: number;
+        limit?: number;
+    }): ProjectedPage | undefined;
     dispose(): Promise<void>;
     shutdown(): Promise<void>;
 }

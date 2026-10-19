@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-20
+
+### 变更（不兼容）
+
+- 辅助工具从 11 个整理为 8 个。`adenxie_vercel_mcp_status`、`_test`、`_oauth_start`、`_oauth_finish`、`_clear` 合并为 `adenxie_vercel_mcp_account`（`action` 取 `status`、`test`、`login`、`finish`、`clear`）；`adenxie_vercel_list_skills` 与 `adenxie_vercel_read_skill` 合并为 `adenxie_vercel_skill`。
+- 系统提示段从 871 字符缩短到 400 字符，内容保持固定，系统提示仍是稳定的缓存前缀。加载前的初始开销从 11 个工具 2974 字符降到 8 个工具 2882 字符。
+
+### 新增
+
+- 声明给模型的远端 schema 经过精简：去掉不影响参数合法性的标注和第一层以下的参数说明，属性名、类型、枚举和 `required` 不变。按 237 个工具的快照，声明总量减少 40%。服务端校验和导出目录不受影响。
+- 精简后超过 6000 字符的工具会折叠最大的属性（会进入 `requestBody` 这类外层对象内部），新增 `adenxie_vercel_mcp_describe_tool` 按路径查看折叠部分的完整结构，无需加载。
+- JSON 长结果只预览前 4000 字符并附结构概要；`adenxie_vercel_mcp_read_result` 新增 `path` 和 `fields`，可按条目只读数组中的指定字段。
+- 新增 `adenxie_vercel_mcp_call`：按名称调用当前 Agent 已加载的工具，在 DSH 内部按真实工具名嵌套执行，审批和守卫照常生效。用于 `deepseek-flash` 等以延迟声明下发新工具、模型未必认为其可调用的线路。
+- 系统提示要求模型不要读取插件凭据文件或绕过插件直连 Vercel（Desktop 测试中出现过模型自写脚本直连的情况）。
+- `adenxie_vercel_mcp_load_tools` 接受 Vercel 原始工具名（如 `list_projects`），已知名称时省去一次搜索。
+- 新增启动开销测试 `tests/surface.mjs`，限制辅助工具 schema 不超过 3000 字符、系统提示不超过 450 字符。
+
+### 调整
+
+- 每个 Agent 的加载上限从 4 个提高到 6 个，字符预算仍为 32000。DeepSeek 线路以 `addition-only` 方式更新工具列表，卸载或替换会使之后的请求无法命中提示缓存；工具说明和系统提示据此建议尽量保留已加载的工具。
+- 搜索默认返回 5 条（最多 8 条），每条说明截到 120 字符。
+
 ## [0.3.1] - 2026-10-19
 
 ### 修复

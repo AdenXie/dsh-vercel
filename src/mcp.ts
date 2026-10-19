@@ -18,7 +18,8 @@ import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import { MCP_URL, type VercelMcpStore } from './store.ts'
 import type { OAuthFlow } from './oauth.ts'
 import { withVerifiedProjectScope } from './scope.ts'
-import { AgentResultCache, MODEL_RESULT_CHARACTERS, RESULT_PAGE_META_KEY, type ResultPage } from './result-cache.ts'
+import { AgentResultCache, JSON_PREVIEW_CHARACTERS, MODEL_RESULT_CHARACTERS, RESULT_PAGE_META_KEY, outlineJson, parseJsonText, type ProjectedPage, type ResultPage } from './result-cache.ts'
+import { describeSchema, modelParameters, schemaAtPath } from './schema.ts'
 
 const RawCallToolResultSchema = z.record(z.string(), z.unknown())
 const MAX_PUBLIC_NAME_LENGTH = 64
@@ -28,11 +29,15 @@ const TOOL_CALL_TIMEOUT_MS = 60_000
 const GENERATION_CLOSE_TIMEOUT_MS = 5_000
 const RECONNECT = { initialDelayMs: 1_000, maxDelayMs: 30_000, maxAttempts: 10 } as const
 const PUBLIC_PREFIX = 'mcp__adenxie_vercel__'
-const MAX_SESSION_TOOLS = 4
+/** Removing a loaded tool rewrites the provider's tool list (a cache miss on addition-only routes), so the cap leaves room to keep tools loaded. */
+const MAX_SESSION_TOOLS = 6
 const MAX_SESSION_SCHEMA_CHARS = 32_000
 const MAX_SEARCH_RESULTS = 8
+const DEFAULT_SEARCH_RESULTS = 5
 const MAX_SEARCH_QUERY = 120
-const MAX_SEARCH_DESCRIPTION = 180
+const MAX_SEARCH_DESCRIPTION = 120
+/** Helper that returns the full structure behind collapsed schema properties. */
+export const DESCRIBE_TOOL_NAME = 'adenxie_vercel_mcp_describe_tool'
 type JsonData = null | boolean | number | string | JsonData[] | { [key: string]: JsonData }
 
 interface AgentToolAccess {
@@ -90,8 +95,15 @@ function copyToolDefinition(tool: McpTool): McpTool {
   return jsonCopy(tool)
 }
 
-function modelSchemaCharacters(entry: McpToolCatalogEntry): number {
-  return JSON.stringify({ name: entry.publicName, description: entry.description ?? '', parameters: entry.inputSchema }).length
+const schemaCharactersCache = new WeakMap<McpToolCatalogEntry, number>()
+
+/** Characters of the declaration the model actually receives for this tool. */
+export function modelSchemaCharacters(entry: McpToolCatalogEntry): number {
+  const cached = schemaCharactersCache.get(entry)
+  if (cached !== undefined) return cached
+  const size = JSON.stringify({ name: entry.publicName, description: entry.description ?? '', parameters: modelParameters(entry.publicName, entry.description ?? '', entry.inputSchema, DESCRIBE_TOOL_NAME).parameters }).length
+  schemaCharactersCache.set(entry, size)
+  return size
 }
 
 function renderMcpContent(content: unknown, structuredContent: unknown): Array<{ type: 'text'; text: string }> {
@@ -130,6 +142,14 @@ function renderMcpResult(value: unknown): Array<{ type: 'text'; text: string }> 
   if (page === undefined || blocks.length === 0) return blocks
   const fullText = blocks.map((block) => block.text).join('\n')
   if (fullText.length <= MODEL_RESULT_CHARACTERS) return blocks
+  if (typeof page.outline === 'string') {
+    const preview = fullText.slice(0, JSON_PREVIEW_CHARACTERS)
+    const outline = page.outline === '' ? '' : `\n结构概要：\n${page.outline}\n`
+    const how = typeof page.resultId === 'string'
+      ? `调用 adenxie_vercel_mcp_read_result({resultId:"${page.resultId}", path, fields:[...]}) 按字段读取数组条目；省略 path/fields 并传 offset:${String(JSON_PREVIEW_CHARACTERS)} 则按字符续读。`
+      : '当前无法续读；请缩小查询范围后重试。'
+    return [{ type: 'text', text: `${preview}\n\n[JSON 结果共 ${String(page.totalCharacters)} 字符，已显示前 ${String(JSON_PREVIEW_CHARACTERS)} 字符。${outline}${how}]` }]
+  }
   const snippet = fullText.slice(0, MODEL_RESULT_CHARACTERS)
   if (typeof page.resultId === 'string' && typeof page.nextOffset === 'number') {
     return [{ type: 'text', text: `${snippet}\n\n[结果已截断，共 ${String(page.totalCharacters)} 字符。调用 adenxie_vercel_mcp_read_result({resultId:"${page.resultId}", offset:${page.nextOffset}, limit:12000}) 继续读取。]` }]
@@ -181,10 +201,16 @@ export interface McpSupervisor {
   listTools(): Promise<string[]>
   listToolCatalog(): Promise<McpToolCatalogEntry[]>
   searchTools(agent: Agent | undefined, query: string, limit?: number): McpToolSearchResult[]
+  /** Accepts namespaced names or raw Vercel MCP names. */
   loadTools(agent: Agent | undefined, names: string[], replace?: boolean): string[]
+  /** Full input structure of one tool (or one property path), independent of loading. */
+  describeTool(agent: Agent | undefined, name: string, path?: string): { name: string; path: string; collapsed: string[]; schema: string }
   unloadTools(agent: Agent | undefined, names?: string[]): string[]
   loadedTools(agent: Agent | undefined): string[]
+  /** Namespaced name of a tool loaded in this agent (raw names accepted), or undefined. */
+  resolveLoadedTool(agent: Agent | undefined, name: string): string | undefined
   readResult(agent: Agent | undefined, resultId: string, offset?: number, limit?: number): ResultPage | undefined
+  projectResult(agent: Agent | undefined, resultId: string, options: { path?: string; fields?: string[]; offset?: number; limit?: number }): ProjectedPage | undefined
   dispose(): Promise<void>
   shutdown(): Promise<void>
 }
@@ -340,7 +366,7 @@ export function createSupervisor(
           const definition = {
             name: publicName,
             description: tool.description ?? '',
-            parameters: tool.inputSchema,
+            parameters: modelParameters(publicName, tool.description ?? '', tool.inputSchema, DESCRIBE_TOOL_NAME).parameters,
             output: {
               schema: {
                 type: 'object' as const,
@@ -380,15 +406,18 @@ export function createSupervisor(
               if (!isRecord(result)) return result
               const rendered = renderedMcpText(result.content, result.structuredContent)
               if (rendered.length <= MODEL_RESULT_CHARACTERS) return result
+              // JSON results get a short preview plus an outline, so the model can project fields instead of paging raw text.
+              const json = isRecord(result.structuredContent) ? result.structuredContent : parseJsonText(rendered)
               const resultId = exec.agent === undefined || !agentAccess.has(exec.agent)
                 ? undefined
-                : resultCache.put(exec.agent, rendered)
+                : resultCache.put(exec.agent, rendered, json)
               const existingMeta = isRecord(result._meta) ? result._meta : {}
               result._meta = {
                 ...existingMeta,
                 [RESULT_PAGE_META_KEY]: {
                   totalCharacters: rendered.length,
-                  nextOffset: MODEL_RESULT_CHARACTERS,
+                  nextOffset: json === undefined ? MODEL_RESULT_CHARACTERS : JSON_PREVIEW_CHARACTERS,
+                  ...(json === undefined ? {} : { outline: outlineJson(json) }),
                   ...(resultId === undefined
                     ? { continuationUnavailable: true }
                     : { resultId }),
@@ -499,7 +528,7 @@ export function createSupervisor(
       ctx.logger.info(`${label}: no OAuth tokens — connection deferred until authorization completes`)
       return
     }
-    const generation = new Client({ name: '@adenxie/dsh-vercel', version: '0.3.1' }, { capabilities: {} })
+    const generation = new Client({ name: '@adenxie/dsh-vercel', version: '0.4.0' }, { capabilities: {} })
     let resolveClosed!: () => void
     const closed = new Promise<void>((resolve) => { resolveClosed = resolve })
     let attemptSettled = false
@@ -575,6 +604,13 @@ export function createSupervisor(
     return new Set(catalog.map((entry) => entry.publicName))
   }
 
+  /** Map a raw Vercel MCP name to its namespaced DSH name; namespaced or unknown names pass through. */
+  function resolvePublicName(name: string, available: Set<string>): string {
+    if (available.has(name)) return name
+    const mapped = mapPublicToolName(name)
+    return available.has(mapped) ? mapped : name
+  }
+
   function parentAgents(agent: Agent): Agent[] {
     return ctx.agents.list().filter((candidate) => candidate !== agent && ctx.agents.isOwnedBy(agent.id, candidate))
   }
@@ -601,7 +637,7 @@ export function createSupervisor(
       if (!ready || client === null) throw new Error('Vercel MCP 未连接。')
       return jsonCopy(catalog)
     },
-    searchTools(agent, query, limit = MAX_SEARCH_RESULTS): McpToolSearchResult[] {
+    searchTools(agent, query, limit = DEFAULT_SEARCH_RESULTS): McpToolSearchResult[] {
       getAccess(agent)
       const entries = currentCatalog()
       const normalize = (value: string): string => value.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
@@ -631,7 +667,7 @@ export function createSupervisor(
     loadTools(agent, names, replace = false): string[] {
       const access = getAccess(agent)
       const available = currentNames()
-      const requested = [...new Set(names)]
+      const requested = [...new Set(names.map((name) => resolvePublicName(name, available)))]
       if (requested.length > MAX_SESSION_TOOLS) throw new Error(`At most ${MAX_SESSION_TOOLS} Vercel MCP tools may be loaded in one session.`)
       const unknown = requested.filter((name) => !available.has(name))
       if (unknown.length > 0) throw new Error(`Unknown or unavailable Vercel MCP tool: ${unknown.slice(0, MAX_SESSION_TOOLS).join(', ')}`)
@@ -676,10 +712,31 @@ export function createSupervisor(
       return removed
     },
     loadedTools(agent): string[] { return [...getAccess(agent).loaded] },
+    resolveLoadedTool(agent, name): string | undefined {
+      const access = getAccess(agent)
+      const publicName = resolvePublicName(name, currentNames())
+      return access.loaded.has(publicName) ? publicName : undefined
+    },
+    describeTool(agent, name, path = '') {
+      getAccess(agent)
+      const publicName = resolvePublicName(name, currentNames())
+      const entry = catalog.find((candidate) => candidate.publicName === publicName)
+      if (entry === undefined) throw new Error(`Unknown or unavailable Vercel MCP tool: ${name}`)
+      const trimmed = path.trim()
+      const node = trimmed === '' ? entry.inputSchema : schemaAtPath(entry.inputSchema, trimmed)
+      if (node === undefined) throw new Error(`No input property at path "${trimmed}" for ${publicName}.`)
+      const { collapsed } = modelParameters(publicName, entry.description ?? '', entry.inputSchema, DESCRIBE_TOOL_NAME)
+      return { name: publicName, path: trimmed, collapsed, schema: describeSchema(node, trimmed, DESCRIBE_TOOL_NAME) }
+    },
     readResult(agent, resultId, offset, limit): ResultPage | undefined {
       if (agent === undefined) throw new Error('续读结果需要当前 Agent 会话。')
       if (!agentAccess.has(agent)) return undefined
       return resultCache.read(agent, resultId, offset, limit)
+    },
+    projectResult(agent, resultId, options): ProjectedPage | undefined {
+      if (agent === undefined) throw new Error('续读结果需要当前 Agent 会话。')
+      if (!agentAccess.has(agent)) return undefined
+      return resultCache.project(agent, resultId, options)
     },
     async dispose(): Promise<void> {
       disposed = true

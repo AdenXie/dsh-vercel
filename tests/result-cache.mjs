@@ -3,7 +3,27 @@ import fs from 'node:fs/promises'
 import ts from 'typescript'
 const source = await fs.readFile('src/result-cache.ts', 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
-const { AgentResultCache, MODEL_RESULT_CHARACTERS, MAX_CACHED_RESULT_CHARACTERS, MAX_CACHED_RESULTS } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'))
+const { AgentResultCache, MODEL_RESULT_CHARACTERS, MAX_CACHED_RESULT_CHARACTERS, MAX_CACHED_RESULTS, MAX_PROJECTED_ITEMS, outlineJson, parseJsonText } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'))
+
+// JSON detection, outline and field projection.
+assert.equal(parseJsonText('plain text'), undefined)
+assert.equal(parseJsonText('{"broken":'), undefined)
+assert.deepEqual(parseJsonText(' [1,2] '), [1, 2])
+assert.equal(outlineJson([{ id: 1, name: 'a' }]), '(根) array(1) 条目字段: id,name')
+assert.equal(outlineJson({ items: [], total: 3, page: { next: null } }), 'items: array(0)\ntotal: number\npage: object {next}')
+const projector = new AgentResultCache()
+const owner = {}
+const doc = { meta: { total: 2 }, rows: [{ id: 'r1', deep: { v: 1 }, big: 'x' }, { id: 'r2', deep: { v: 2 }, big: 'y' }] }
+const docId = projector.put(owner, JSON.stringify(doc), doc)
+assert.deepEqual(projector.project(owner, docId, { fields: ['id', 'deep.v'] }), { resultId: docId, path: 'rows', text: '{"id":"r1","deep.v":1}\n{"id":"r2","deep.v":2}', offset: 0, nextOffset: null, totalItems: 2 })
+assert.equal(projector.project(owner, docId, { path: 'meta' }).text, '{"total":2}')
+assert.equal(projector.project(owner, docId, { path: 'rows', offset: 1, limit: 1 }).text, '{"id":"r2","deep":{"v":2},"big":"y"}')
+assert.throws(() => projector.project(owner, docId, { path: 'missing' }), /No value/)
+assert.throws(() => projector.project(owner, docId, { limit: MAX_PROJECTED_ITEMS + 1 }), /range/)
+assert.throws(() => projector.project(owner, docId, { offset: 3 }), /exceeds/)
+assert.equal(projector.project({}, docId, {}), undefined)
+const textId = projector.put(owner, 'not json')
+assert.throws(() => projector.project(owner, textId, { fields: ['id'] }), /not JSON/)
 const cache = new AgentResultCache()
 const a = {}, b = {}
 const full = 'visible first page '.repeat(900)

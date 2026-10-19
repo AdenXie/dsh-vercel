@@ -17,6 +17,8 @@ import { z } from 'zod'
 const temp = await mkdtemp(path.join(os.tmpdir(), 'dsh-vercel-mcp-test-'))
 process.env.DSH_VERCEL_CONFIG = path.join(temp, 'credentials.json')
 const longFixtureText = 'Vercel-result-0123456789|'.repeat(1_200)
+const longJsonItems = Array.from({ length: 300 }, (_, index) => ({ id: `dpl_${index}`, state: index % 2 === 0 ? 'READY' : 'ERROR', url: `fixture-${index}.vercel.app`, meta: { region: 'syd1', note: 'n'.repeat(40) } }))
+const longJsonText = JSON.stringify({ deployments: longJsonItems, pagination: { count: 300 } })
 
 function registerFixtureTools(remote) {
   let structuredCalls = 0
@@ -63,8 +65,12 @@ function registerFixtureTools(remote) {
   remote.registerTool('tiny_four', { inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: 'four' }] }))
   remote.registerTool('tiny_five', { inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: 'five' }] }))
   remote.registerTool('oversized_schema', {
-    inputSchema: z.object({ payload: z.string().describe('x'.repeat(33_000)) }),
+    inputSchema: z.object(Object.fromEntries(Array.from({ length: 1_600 }, (_, index) => [`p${index}`, z.string()]))),
   }, async () => ({ content: [{ type: 'text', text: 'oversized' }] }))
+  remote.registerTool('json_list', {
+    description: 'Returns a long JSON document for field projection checks.',
+    inputSchema: z.object({}),
+  }, async () => ({ content: [{ type: 'text', text: longJsonText }] }))
   return { get structuredCalls() { return structuredCalls } }
 }
 
@@ -142,17 +148,34 @@ async function makeRemoteServer({ failToolsLists = 0, snapshotTools } = {}) {
 }
 
 try {
-  const { VercelMcpStore, OAuthFlow, createSupervisor, createOnDemandTools, registerMcpResultSemantics, makeRoutes, VERCEL_MCP_API, mapPublicToolName, VERCEL_MCP_GUIDANCE } = await import('../lib/index.js')
+  const { VercelMcpStore, OAuthFlow, createSupervisor, createOnDemandTools, registerMcpResultSemantics, makeRoutes, VERCEL_MCP_API, mapPublicToolName, VERCEL_MCP_GUIDANCE, modelParameters, slimSchema } = await import('../lib/index.js')
   const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
   const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8')
   const readmeZh = await readFile(new URL('../README.zh.md', import.meta.url), 'utf8')
   assert.equal(packageJson.name, '@adenxie/dsh-vercel')
   assert.ok(VERCEL_MCP_GUIDANCE.includes('mcp__adenxie_vercel__*'))
-  assert.ok(VERCEL_MCP_GUIDANCE.includes('adenxie_vercel_mcp_oauth_start'))
+  assert.ok(VERCEL_MCP_GUIDANCE.includes('adenxie_vercel_mcp_account'))
+  assert.ok(VERCEL_MCP_GUIDANCE.length <= 450, `guidance is sent every request; keep it short (${VERCEL_MCP_GUIDANCE.length})`)
   assert.ok(readme.includes('/api/adenxie/dsh-vercel/catalog'))
   assert.ok(readmeZh.includes('mcp__adenxie_vercel__*'))
   assert.ok(readmeZh.includes('adenxie-dsh-vercel'))
   assert.equal(VERCEL_MCP_API.catalog, '/api/adenxie/dsh-vercel/catalog')
+  // Slimming drops validation-neutral annotations but never property names that collide with schema keywords.
+  assert.deepEqual(slimSchema({
+    $schema: 'x', type: 'object', additionalProperties: false, title: 'Root', description: 'root',
+    properties: {
+      title: { type: 'string', description: 'kept at depth one', example: 'drop' },
+      example: { type: 'object', additionalProperties: { type: 'number' }, properties: { inner: { type: 'string', description: 'nested prose' } } },
+    },
+    required: ['title'],
+  }), {
+    type: 'object', description: 'root',
+    properties: {
+      title: { type: 'string', description: 'kept at depth one' },
+      example: { type: 'object', additionalProperties: { type: 'number' }, properties: { inner: { type: 'string' } } },
+    },
+    required: ['title'],
+  })
   const longMapped = mapPublicToolName('x'.repeat(120))
   assert.ok(longMapped.startsWith('mcp__adenxie_vercel__'))
   assert.ok(longMapped.length <= 64)
@@ -185,15 +208,15 @@ try {
   const agentB = agentBHandle.agent
   const releaseMcpMapper = ctx.effect(() => registerMcpResultSemantics(ctx), 'test: MCP result mapping')
   const supervisor = createSupervisor(ctx, store, new OAuthFlow(store), 'http://127.0.0.1:3000/callback', { serverUrl: remote.url })
-  const onDemandTools = createOnDemandTools(supervisor)
+  const onDemandTools = createOnDemandTools(supervisor, runtime)
   const controlDisposers = onDemandTools.map((definition) => runtime.register(definition))
 
   await Promise.all([supervisor.start(), supervisor.start()])
   assert.equal(supervisor.isConnected(), true)
-  assert.equal(supervisor.toolCount(), 7)
+  assert.equal(supervisor.toolCount(), 8)
   assert.ok(remote.authorizationHeaders.some((value) => value === 'Bearer fixture-access'))
   const catalog = await supervisor.listToolCatalog()
-  assert.equal(catalog.length, 7)
+  assert.equal(catalog.length, 8)
   const structuredDefinition = catalog.find((tool) => tool.rawName === 'structured_only')
   assert.equal(structuredDefinition.title, 'Structured only')
   assert.equal(structuredDefinition.annotations.readOnlyHint, true)
@@ -359,7 +382,27 @@ try {
   })
   assert.equal(structured.isError, true)
   assert.match(structured.error.message, /fixture pre-execute deny/)
+  const viaCallDenied = await runtime.execute({
+    callId: 'fixture-call-denied', name: 'adenxie_vercel_mcp_call',
+    arguments: { name: 'structured_only', arguments: {} }, signal: new AbortController().signal, agent: agentA,
+  })
+  assert.equal(viaCallDenied.value.ok, false, 'the call fallback must not bypass host pre-execute policy')
+  assert.match(viaCallDenied.value.message, /fixture pre-execute deny/)
   denyStructured = false
+  const viaCall = await runtime.execute({
+    callId: 'fixture-call-allowed', name: 'adenxie_vercel_mcp_call',
+    arguments: { name: 'structured_only', arguments: {} }, signal: new AbortController().signal, agent: agentA,
+  })
+  assert.equal(viaCall.isError, false)
+  assert.equal(viaCall.value.ok, true)
+  assert.equal(viaCall.value.tool, structuredDefinition.publicName)
+  assert.equal(viaCall.content[0].text, '{"value":42}')
+  const viaCallNotLoaded = await runtime.execute({
+    callId: 'fixture-call-not-loaded', name: 'adenxie_vercel_mcp_call',
+    arguments: { name: 'tiny_five', arguments: {} }, signal: new AbortController().signal, agent: agentA,
+  })
+  assert.equal(viaCallNotLoaded.value.ok, false)
+  assert.match(viaCallNotLoaded.value.message, /尚未在当前 Agent 加载/)
   const structuredAllowed = await runtime.execute({
     callId: 'fixture-structured-allowed', name: structuredDefinition.publicName,
     arguments: {}, signal: new AbortController().signal, agent: agentA,
@@ -378,18 +421,62 @@ try {
   const emptyDefinition = catalog.find((tool) => tool.rawName === 'empty_result')
   const tinyFour = catalog.find((tool) => tool.rawName === 'tiny_four')
   const tinyFive = catalog.find((tool) => tool.rawName === 'tiny_five')
+  const jsonDefinition = catalog.find((tool) => tool.rawName === 'json_list')
+  // Raw Vercel names are accepted alongside namespaced names, so a known tool needs no search round trip.
   const loadRemaining = await runtime.execute({
     callId: 'fixture-load-remaining', name: 'adenxie_vercel_mcp_load_tools',
-    arguments: { names: [errorDefinition.publicName, emptyDefinition.publicName, tinyFour.publicName] }, signal: new AbortController().signal, agent: agentA,
+    arguments: { names: [errorDefinition.publicName, 'empty_result', tinyFour.publicName, tinyFive.publicName, 'json_list'] }, signal: new AbortController().signal, agent: agentA,
   })
-  assert.equal(loadRemaining.value.loadedCount, 4)
+  assert.equal(loadRemaining.value.ok, true)
+  assert.equal(loadRemaining.value.loadedCount, 6)
+  assert.ok(loadRemaining.value.loaded.includes(emptyDefinition.publicName))
+  assert.ok(loadRemaining.value.loaded.includes(jsonDefinition.publicName))
   const overCount = await runtime.execute({
     callId: 'fixture-over-count', name: 'adenxie_vercel_mcp_load_tools',
-    arguments: { names: [tinyFive.publicName] }, signal: new AbortController().signal, agent: agentA,
+    arguments: { names: [longDefinition.publicName] }, signal: new AbortController().signal, agent: agentA,
   })
   assert.equal(overCount.value.ok, false)
-  assert.match(overCount.value.message, /At most 4/)
-  assert.equal(overCount.value.loadedCount, 4)
+  assert.match(overCount.value.message, /At most 6/)
+  assert.equal(overCount.value.loadedCount, 6)
+
+  // A long JSON result shows a short preview with an outline, then pages selected fields by item.
+  const jsonResult = await runtime.execute({
+    callId: 'fixture-json-result', name: jsonDefinition.publicName,
+    arguments: {}, signal: new AbortController().signal, agent: agentA,
+  })
+  assert.equal(jsonResult.isError, false)
+  const jsonPage = jsonResult.value._meta['dsh-vercel/result-page']
+  assert.equal(jsonPage.nextOffset, 4_000)
+  assert.match(jsonPage.outline, /deployments: array\(300\) 条目字段: id,state,url,meta/)
+  assert.ok(jsonResult.content[0].text.length < 6_000, `JSON preview is ${jsonResult.content[0].text.length} characters`)
+  assert.match(jsonResult.content[0].text, /fields/)
+  const projected = await runtime.execute({
+    callId: 'fixture-json-project', name: 'adenxie_vercel_mcp_read_result',
+    arguments: { resultId: jsonPage.resultId, fields: ['id', 'state', 'meta.region'], offset: 10, limit: 3 },
+    signal: new AbortController().signal, agent: agentA,
+  })
+  assert.equal(projected.value.ok, true)
+  assert.equal(projected.value.path, 'deployments')
+  assert.equal(projected.value.totalItems, 300)
+  assert.equal(projected.value.nextOffset, 13)
+  assert.deepEqual(projected.value.text.split('\n').map((line) => JSON.parse(line)), [
+    { id: 'dpl_10', state: 'READY', 'meta.region': 'syd1' },
+    { id: 'dpl_11', state: 'ERROR', 'meta.region': 'syd1' },
+    { id: 'dpl_12', state: 'READY', 'meta.region': 'syd1' },
+  ])
+  assert.match(projected.content[0].text, /totalItems=300/)
+  const charPage = await runtime.execute({
+    callId: 'fixture-json-chars', name: 'adenxie_vercel_mcp_read_result',
+    arguments: { resultId: jsonPage.resultId, offset: 4_000, limit: 100 },
+    signal: new AbortController().signal, agent: agentA,
+  })
+  assert.equal(charPage.value.text, longJsonText.slice(4_000, 4_100))
+  const textProjection = await runtime.execute({
+    callId: 'fixture-text-project', name: 'adenxie_vercel_mcp_read_result',
+    arguments: { resultId: pageMetaA.resultId, fields: ['id'] },
+    signal: new AbortController().signal, agent: agentA,
+  })
+  assert.equal(textProjection.value.ok, false)
   const errored = await runtime.execute({
     callId: 'fixture-error',
     name: errorDefinition.publicName,
@@ -415,10 +502,10 @@ try {
   assert.deepEqual(empty.content, [])
   const unloaded = await runtime.execute({
     callId: 'fixture-unload', name: 'adenxie_vercel_mcp_unload_tools',
-    arguments: { names: [errorDefinition.publicName, emptyDefinition.publicName, tinyFour.publicName] }, signal: new AbortController().signal, agent: agentA,
+    arguments: { names: [errorDefinition.publicName, emptyDefinition.publicName, tinyFour.publicName, tinyFive.publicName, jsonDefinition.publicName] }, signal: new AbortController().signal, agent: agentA,
   })
   assert.equal(unloaded.isError, false)
-  assert.deepEqual(unloaded.value.unloaded, [errorDefinition.publicName, emptyDefinition.publicName, tinyFour.publicName])
+  assert.deepEqual(unloaded.value.unloaded, [errorDefinition.publicName, emptyDefinition.publicName, tinyFour.publicName, tinyFive.publicName, jsonDefinition.publicName])
   assert.match(unloaded.content[0].text, /mcp__adenxie_vercel__error_result/)
   assert.deepEqual(publicNames(agentA), [structuredDefinition.publicName])
 
@@ -428,7 +515,7 @@ try {
   const response = { status: 0, headers: {}, body: '', writeHead(status, headers) { this.status = status; this.headers = headers }, end(body) { this.body = body } }
   await catalogRoute.handler({ method: 'GET', url: VERCEL_MCP_API.catalog, socket: { remoteAddress: '127.0.0.1' }, headers: { host: '127.0.0.1:3000' } }, response)
   assert.equal(response.status, 200)
-  assert.equal(JSON.parse(response.body).tools.length, 7)
+  assert.equal(JSON.parse(response.body).tools.length, 8)
 
   // Supervisor disposal unregisters dynamically discovered tools.
   await supervisor.dispose()
@@ -477,7 +564,7 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
   assert.equal(reconnectSupervisor.isConnected(), true)
-  assert.equal(reconnectSupervisor.toolCount(), 7)
+  assert.equal(reconnectSupervisor.toolCount(), 8)
   await reconnectSupervisor.dispose()
   await flakyRemote.close()
   await supervisor.shutdown()
@@ -491,7 +578,7 @@ try {
   const snapshotAgentA = snapshotAgentAHandle.agent
   const snapshotAgentB = snapshotAgentBHandle.agent
   const snapshotSupervisor = createSupervisor(ctx, store, new OAuthFlow(store), 'http://127.0.0.1:3000/callback', { serverUrl: snapshotRemote.url })
-  const snapshotControls = createOnDemandTools(snapshotSupervisor).map((definition) => runtime.register(definition))
+  const snapshotControls = createOnDemandTools(snapshotSupervisor, runtime).map((definition) => runtime.register(definition))
   await snapshotSupervisor.start()
   assert.equal(snapshotSupervisor.toolCount(), 237)
   for (const query of ['list projects', 'list_projects', 'LIST-PROJECTS', 'projects list', mapPublicToolName('list_projects')]) {
@@ -522,10 +609,43 @@ try {
   })
   assert.equal(updateLoad.value.ok, true)
   assert.match(updateLoad.content[0].text, new RegExp(updateName))
-  const updateSchemaCharacters = JSON.stringify({ name: updateName, description: updateProject.description ?? '', parameters: updateProject.inputSchema }).length
-  assert.equal(snapshotSupervisor.loadedSchemaCharacters(snapshotAgentA), updateSchemaCharacters)
-  assert.ok(updateSchemaCharacters > 20_000 && updateSchemaCharacters < 32_000)
+  const rawUpdateCharacters = JSON.stringify({ name: updateName, description: updateProject.description ?? '', parameters: updateProject.inputSchema }).length
+  const declaredUpdate = runtime.schemas(snapshotAgentA).find((schema) => schema.name === updateName)
+  const declaredUpdateCharacters = JSON.stringify({ name: declaredUpdate.name, description: declaredUpdate.description, parameters: declaredUpdate.parameters }).length
+  assert.ok(rawUpdateCharacters > 20_000)
+  assert.ok(declaredUpdateCharacters < 7_000, `collapsed update_project declaration is ${declaredUpdateCharacters} characters`)
+  assert.ok(Math.abs(snapshotSupervisor.loadedSchemaCharacters(snapshotAgentA) - declaredUpdateCharacters) < 200)
+  assert.deepEqual(declaredUpdate.parameters.required ?? [], updateProject.inputSchema.required ?? [])
+  assert.match(JSON.stringify(declaredUpdate.parameters), /adenxie_vercel_mcp_describe_tool/)
   assert.deepEqual(runtime.schemas(snapshotAgentA).filter((schema) => schema.name.startsWith('mcp__adenxie_vercel__')).map((schema) => schema.name), [updateName])
+  // Collapsing descends into the requestBody wrapper, so small body fields stay inline and only large ones are folded.
+  assert.ok(Object.keys(declaredUpdate.parameters.properties.requestBody.properties).length > 10)
+  const collapsedProperty = JSON.stringify(declaredUpdate.parameters).match(/path:\\"([^\\"]+)\\"/)[1]
+  assert.match(collapsedProperty, /^requestBody\./)
+  const described = await runtime.execute({
+    callId: 'snapshot-describe-update', name: 'adenxie_vercel_mcp_describe_tool',
+    arguments: { name: 'update_project', path: collapsedProperty }, signal: new AbortController().signal, agent: snapshotAgentB,
+  })
+  assert.equal(described.value.ok, true)
+  assert.ok(described.value.collapsed.includes(collapsedProperty))
+  assert.ok(described.content[0].text.length > 0 && described.content[0].text.length <= 6_100)
+  const describedMissing = await runtime.execute({
+    callId: 'snapshot-describe-missing', name: 'adenxie_vercel_mcp_describe_tool',
+    arguments: { name: 'update_project', path: 'no.such.path' }, signal: new AbortController().signal, agent: snapshotAgentB,
+  })
+  assert.equal(describedMissing.value.ok, false)
+
+  // Every declared remote schema is smaller than the original and keeps its required names and property names.
+  let rawTotal = 0
+  let declaredTotal = 0
+  for (const tool of snapshot.tools) {
+    const declared = modelParameters(mapPublicToolName(tool.name), tool.description ?? '', tool.inputSchema, 'adenxie_vercel_mcp_describe_tool').parameters
+    assert.deepEqual(declared.required ?? [], tool.inputSchema.required ?? [], tool.name)
+    assert.deepEqual(Object.keys(declared.properties ?? {}), Object.keys(tool.inputSchema.properties ?? {}), tool.name)
+    rawTotal += JSON.stringify(tool.inputSchema).length
+    declaredTotal += JSON.stringify(declared).length
+  }
+  assert.ok(declaredTotal < rawTotal * 0.6, `declared ${declaredTotal} of raw ${rawTotal}`)
   assert.equal(runtime.schemas(snapshotAgentB).filter((schema) => schema.name.startsWith('mcp__adenxie_vercel__')).length, 0)
 
   const listProjects = snapshot.tools.find((tool) => tool.name === 'list_projects')
