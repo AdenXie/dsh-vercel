@@ -1,6 +1,6 @@
 {
   "name": "@adenxie/dsh-vercel",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "DeepSeek Harness Vercel MCP connection with OAuth, a settings panel, and on-demand official Vercel skills",
   "type": "module",
   "main": "lib/index.js",
@@ -47,7 +47,7 @@
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0",
-    "dsh": ">=0.2.1-rc.2 <0.3.0"
+    "dsh": ">=0.2.1-rc.2 <0.3.0-0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsdown",
@@ -62,7 +62,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-agent": ">=0.2.1-rc.2 <0.3.0-0",
     "@deepseek-ai/dsh-client-ui-settings": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-host-webserver": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-system-prompt": "^0.2.1-rc.2",

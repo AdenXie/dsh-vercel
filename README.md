@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="package.json"><img src="https://img.shields.io/badge/version-0.4.0-2563eb" alt="Package version 0.4.0"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-0.4.1-2563eb" alt="Package version 0.4.1"></a>
   <a href="https://www.npmjs.com/package/@adenxie/dsh-vercel"><img src="https://img.shields.io/npm/v/%40adenxie%2Fdsh-vercel?logo=npm&amp;color=CB3837" alt="npm version"></a>
   <a href="#install"><img src="https://img.shields.io/badge/DSH-0.2.1--rc.2-2563eb" alt="DSH compatibility target 0.2.1-rc.2"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/Node.js-22.19%2B%20or%2024%2B-339933?logo=nodedotjs&amp;logoColor=white" alt="Node.js 22.19+ or 24+; see package.json for the exact range"></a>
@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@adenxie/dsh-vercel"><img src="https://img.shields.io/badge/Install_from_npm-CB3837?style=for-the-badge&amp;logo=npm" alt="Install from npm"></a>
-  <a href="https://github.com/AdenXie/dsh-vercel/releases/download/v0.4.0/adenxie-dsh-vercel-0.4.0.tgz"><img src="https://img.shields.io/badge/Download_tgz-111827?style=for-the-badge&amp;logo=github" alt="Download the 0.4.0 tarball"></a>
+  <a href="https://github.com/AdenXie/dsh-vercel/releases/download/v0.4.1/adenxie-dsh-vercel-0.4.1.tgz"><img src="https://img.shields.io/badge/Download_tgz-111827?style=for-the-badge&amp;logo=github" alt="Download the 0.4.1 tarball"></a>
   <a href="#install"><img src="https://img.shields.io/badge/Quick_start-111827?style=for-the-badge" alt="Quick start"></a>
   <a href="#vercel-skills"><img src="https://img.shields.io/badge/Skills-111827?style=for-the-badge" alt="Skill guide"></a>
   <a href="docs/VERCEL_PARITY_AUDIT.zh.md"><img src="https://img.shields.io/badge/Feature_comparison-111827?style=for-the-badge" alt="Feature comparison"></a>
@@ -28,7 +28,7 @@
 
 <p align="center">English · <a href="README.zh.md">简体中文</a></p>
 
-`@adenxie/dsh-vercel` connects DeepSeek Harness to Vercel's official MCP server. After you sign in to Vercel once, the model can look up your projects, deployments, and teams, and read any of the 34 bundled Vercel skill guides when it needs them. The current version is 0.4.0.
+`@adenxie/dsh-vercel` connects DeepSeek Harness to Vercel's official MCP server. After you sign in to Vercel once, the model can look up your projects, deployments, and teams, and read any of the 34 bundled Vercel skill guides when it needs them. The current version is 0.4.1.
 
 ## Install
 
@@ -40,22 +40,22 @@ Open DSH Desktop once so it creates its profile, quit it completely, then instal
 
 ```powershell
 $DshCli = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-& $DshCli plugin --profile desktop add '@adenxie/dsh-vercel@0.4.0'
+& $DshCli plugin --profile desktop add '@adenxie/dsh-vercel@0.4.1'
 ```
 
-Start Desktop again when it finishes. For a Web profile, run `dsh plugin --profile web add @adenxie/dsh-vercel@0.4.0`.
+Start Desktop again when it finishes. For a Web profile, run `dsh plugin --profile web add @adenxie/dsh-vercel@0.4.1`.
 
 ### From the tarball
 
-Download `adenxie-dsh-vercel-0.4.0.tgz` from the [0.4.0 Release](https://github.com/AdenXie/dsh-vercel/releases/tag/v0.4.0), or run `npm pack` in a checkout to build it. Quit Desktop as above, then run this in the folder that holds the file:
+Download `adenxie-dsh-vercel-0.4.1.tgz` from the [0.4.1 Release](https://github.com/AdenXie/dsh-vercel/releases/tag/v0.4.1), or run `npm pack` in a checkout to build it. Quit Desktop as above, then run this in the folder that holds the file:
 
 ```powershell
 $DshCli = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-$Archive = (Resolve-Path './adenxie-dsh-vercel-0.4.0.tgz').Path
+$Archive = (Resolve-Path './adenxie-dsh-vercel-0.4.1.tgz').Path
 & $DshCli plugin --profile desktop add $Archive
 ```
 
-On other platforms, run `dsh plugin --profile web add /path/to/adenxie-dsh-vercel-0.4.0.tgz` with your own path and profile.
+On other platforms, run `dsh plugin --profile web add /path/to/adenxie-dsh-vercel-0.4.1.tgz` with your own path and profile.
 
 ### From source
 

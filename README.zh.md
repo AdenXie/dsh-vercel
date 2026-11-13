@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="package.json"><img src="https://img.shields.io/badge/version-0.4.0-2563eb" alt="文档版本 0.4.0"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-0.4.1-2563eb" alt="文档版本 0.4.1"></a>
   <a href="https://www.npmjs.com/package/@adenxie/dsh-vercel"><img src="https://img.shields.io/npm/v/%40adenxie%2Fdsh-vercel?logo=npm&amp;color=CB3837" alt="npm 版本"></a>
   <a href="#安装"><img src="https://img.shields.io/badge/DSH-0.2.1--rc.2-2563eb" alt="DSH 兼容目标 0.2.1-rc.2"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/Node.js-22.19%2B%20or%2024%2B-339933?logo=nodedotjs&amp;logoColor=white" alt="Node.js 版本范围见 package.json"></a>
@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@adenxie/dsh-vercel"><img src="https://img.shields.io/badge/npm_%E5%AE%89%E8%A3%85-CB3837?style=for-the-badge&amp;logo=npm" alt="npm 安装"></a>
-  <a href="https://github.com/AdenXie/dsh-vercel/releases/download/v0.4.0/adenxie-dsh-vercel-0.4.0.tgz"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD_tgz-111827?style=for-the-badge&amp;logo=github" alt="下载 0.4.0 安装包"></a>
+  <a href="https://github.com/AdenXie/dsh-vercel/releases/download/v0.4.1/adenxie-dsh-vercel-0.4.1.tgz"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD_tgz-111827?style=for-the-badge&amp;logo=github" alt="下载 0.4.1 安装包"></a>
   <a href="#安装"><img src="https://img.shields.io/badge/快速开始-111827?style=for-the-badge" alt="快速开始"></a>
   <a href="#官方技能"><img src="https://img.shields.io/badge/技能指南-111827?style=for-the-badge" alt="技能指南"></a>
   <a href="docs/VERCEL_PARITY_AUDIT.zh.md"><img src="https://img.shields.io/badge/功能对比-111827?style=for-the-badge" alt="与 Codex Vercel 插件的功能对比"></a>
@@ -28,7 +28,7 @@
 
 <p align="center"><a href="README.md">English</a> · 简体中文</p>
 
-`@adenxie/dsh-vercel` 把 Vercel 官方 MCP 服务接入 DeepSeek Harness。登录一次 Vercel 后，模型就能查询项目、部署和团队等信息，也能按需读取随包附带的 34 个 Vercel 技能文档。当前版本是 0.4.0。
+`@adenxie/dsh-vercel` 把 Vercel 官方 MCP 服务接入 DeepSeek Harness。登录一次 Vercel 后，模型就能查询项目、部署和团队等信息，也能按需读取随包附带的 34 个 Vercel 技能文档。当前版本是 0.4.1。
 
 ## 安装
 
@@ -40,22 +40,22 @@
 
 ```powershell
 $DshCli = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-& $DshCli plugin --profile desktop add '@adenxie/dsh-vercel@0.4.0'
+& $DshCli plugin --profile desktop add '@adenxie/dsh-vercel@0.4.1'
 ```
 
-装完重新打开 Desktop。Web profile 用 `dsh plugin --profile web add @adenxie/dsh-vercel@0.4.0`。
+装完重新打开 Desktop。Web profile 用 `dsh plugin --profile web add @adenxie/dsh-vercel@0.4.1`。
 
 ### 从安装包安装
 
-从 [0.4.0 Release](https://github.com/AdenXie/dsh-vercel/releases/tag/v0.4.0) 下载 `adenxie-dsh-vercel-0.4.0.tgz`，或者在源码目录运行 `npm pack` 自己生成。同样先初始化并退出 Desktop，然后在安装包所在目录运行：
+从 [0.4.1 Release](https://github.com/AdenXie/dsh-vercel/releases/tag/v0.4.1) 下载 `adenxie-dsh-vercel-0.4.1.tgz`，或者在源码目录运行 `npm pack` 自己生成。同样先初始化并退出 Desktop，然后在安装包所在目录运行：
 
 ```powershell
 $DshCli = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-$Archive = (Resolve-Path './adenxie-dsh-vercel-0.4.0.tgz').Path
+$Archive = (Resolve-Path './adenxie-dsh-vercel-0.4.1.tgz').Path
 & $DshCli plugin --profile desktop add $Archive
 ```
 
-其他平台用 `dsh plugin --profile web add /path/to/adenxie-dsh-vercel-0.4.0.tgz`，路径和 profile 换成你自己的。
+其他平台用 `dsh plugin --profile web add /path/to/adenxie-dsh-vercel-0.4.1.tgz`，路径和 profile 换成你自己的。
 
 ### 从源码安装
 

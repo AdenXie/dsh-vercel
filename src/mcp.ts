@@ -528,7 +528,7 @@ export function createSupervisor(
       ctx.logger.info(`${label}: no OAuth tokens — connection deferred until authorization completes`)
       return
     }
-    const generation = new Client({ name: '@adenxie/dsh-vercel', version: '0.4.0' }, { capabilities: {} })
+    const generation = new Client({ name: '@adenxie/dsh-vercel', version: '0.4.1' }, { capabilities: {} })
     let resolveClosed!: () => void
     const closed = new Promise<void>((resolve) => { resolveClosed = resolve })
     let attemptSettled = false
